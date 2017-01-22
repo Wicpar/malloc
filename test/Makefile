@@ -6,7 +6,7 @@
 #    By: fnieto <fnieto@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2013/11/19 14:09:58 by apachkof          #+#    #+#              #
-#    Updated: 2017/01/21 19:40:50 by fnieto           ###   ########.fr        #
+#    Updated: 2017/01/22 22:19:27 by fnieto           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -20,29 +20,47 @@ RM=rm -f
 
 SRC=main.c
 
+TNAMES=$(shell ls -1 tests)
+
+TSRC=$(addprefix tests/,$(TNAMES))
+
 LIB= -L ../ -lft_malloc
 
 INCL=-I ../includes/
 
 OBJ=$(SRC:.c=.o)
+TOBJ=$(TSRC:.c=.o)
 
-$(NAME): $(OBJ)
-		make -C ../
-		$(CC) $(CFLAGS) -o $(NAME) $(OBJ) $(INCL) $(LIB)
+$(NAME): lib $(OBJ) $(TOBJ) FORCE
+
+tests/%.o: tests/%.c lib $(OBJ) FORCE
+	@$(CC) $(CFLAGS) $(INCL) -c $< -o $@
+	@$(CC) $(CFLAGS) -o $(NAME) $(OBJ) $@ $(INCL) $(LIB)
+	@echo $@
+	@./test
 
 %.o: %.c
-		$(CC) $(CFLAGS) $(INCL) -c $< -o $@
+	@$(CC) $(CFLAGS) $(INCL) -c $< -o $@
+
+lib:
+	@make -C ../
+	@cp ../libft_malloc.so .
+	@cp ../libft_malloc_x86_64_Darwin.so .
 
 all: $(NAME)
 
 clean:
-		make -C ../ fclean
-		$(RM) $(OBJ)
+	make -C ../ fclean
+	$(RM) $(OBJ)
+	$(RM) $(TOBJ)
+	$(RM) *.so
 
 fclean: clean
-		make -C ../ fclean
-		$(RM) $(NAME)
+	make -C ../ fclean
+	$(RM) $(NAME)
 
 re: fclean all
 
-.PHONY: clean fclean
+FORCE:
+
+.PHONY: clean fclean FORCE lib

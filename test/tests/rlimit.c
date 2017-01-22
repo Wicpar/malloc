@@ -1,18 +1,24 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   rlimit.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2017/01/21 19:16:51 by fnieto            #+#    #+#             */
-/*   Updated: 2017/01/22 13:55:54 by fnieto           ###   ########.fr       */
+/*   Created: 2017/01/22 14:36:30 by fnieto            #+#    #+#             */
+/*   Updated: 2017/01/22 14:53:43 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "test.h"
+#include <sys/time.h> 
+#include <sys/resource.h>
+#include <stdio.h>
 
-int	main(void)
+void	test(void)
 {
-	test();
+	struct rlimit lim;
+
+	getrlimit(RLIMIT_AS, &lim);
+	printf("soft: %llu\n", lim.rlim_cur);
+	printf("hard: %llu\n", lim.rlim_max);
 }

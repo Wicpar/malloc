@@ -1,18 +1,30 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.c                                             :+:      :+:    :+:   */
+/*   allocTiny.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2017/01/21 19:16:51 by fnieto            #+#    #+#             */
-/*   Updated: 2017/01/22 13:55:54 by fnieto           ###   ########.fr       */
+/*   Created: 2017/01/22 22:22:34 by fnieto            #+#    #+#             */
+/*   Updated: 2017/01/22 22:38:08 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "test.h"
+#include "malloc.h"
+#include "util.h"
+#include <stdio.h>
 
-int	main(void)
+void	test(void)
 {
-	test();
+	char	*mem;
+
+	mem = malloc(0);
+	printf("%p\n", mem);
+	printf("%d\n", RW);
+	mem = malloc(3);
+	printf("%p\n", mem);
+//	mem[0] = 'a';
+//	mem[1] = '\n';
+//	mem[2] = 0;
+	printf("%c\n", *mem);
 }
