@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 18:07:20 by fnieto            #+#    #+#             */
-/*   Updated: 2017/01/22 22:53:57 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/01/23 16:18:00 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,11 @@
 # include <sys/mman.h>
 
 # define RW (PROT_READ | PROT_WRITE)
+# define FVN (14695981039346656037UL)
+# define F (128)
+# define H (F / 2)
+# define Q (H / 2)
+
 
 typedef unsigned long	t_ulong;
 typedef unsigned int	t_uint;
@@ -33,15 +38,15 @@ typedef struct			s_partition
 {
 	char	*name;
 	size_t	max_size;
+	t_ulong	filter;
 	t_block	origin;
 }						t_partition;
 
 typedef struct			s_data
 {
-	t_partition	partitions[3];
+	t_partition	parts[3];
 	size_t		block_size;
 	size_t		max_blocks;
-	size_t		allocated_blocks;
 }						t_data;
 
 t_data					init(void);

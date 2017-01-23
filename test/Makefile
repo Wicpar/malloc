@@ -6,7 +6,7 @@
 #    By: fnieto <fnieto@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2013/11/19 14:09:58 by apachkof          #+#    #+#              #
-#    Updated: 2017/01/22 22:19:27 by fnieto           ###   ########.fr        #
+#    Updated: 2017/01/23 16:30:22 by fnieto           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -37,7 +37,7 @@ tests/%.o: tests/%.c lib $(OBJ) FORCE
 	@$(CC) $(CFLAGS) $(INCL) -c $< -o $@
 	@$(CC) $(CFLAGS) -o $(NAME) $(OBJ) $@ $(INCL) $(LIB)
 	@echo $@
-	@./test
+	@time ./test
 
 %.o: %.c
 	@$(CC) $(CFLAGS) $(INCL) -c $< -o $@
