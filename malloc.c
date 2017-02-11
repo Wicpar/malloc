@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 17:26:28 by fnieto            #+#    #+#             */
-/*   Updated: 2017/01/23 16:38:18 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/11 21:19:34 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -144,36 +144,84 @@ void			free(void *ptr)
 
 }
 
+void			*ft_memcpy(void *dest, const void *src, size_t n)
+{
+	void	*tmp;
+	int		n64;
+
+	tmp = dest;
+	n64 = n / sizeof(t_ulong);
+	n -= n64;
+	while (--n64 >= 0)
+	{
+		*((t_ulong*)tmp) = *((t_ulong*)src);
+		tmp += sizeof(t_ulong);
+		src += sizeof(t_ulong);
+	}
+	while (--n < -1)
+		*(char*)tmp++ = *(char*)src++;
+	return dest;
+}
+
+
+
+void			*realloc_block(t_block *blc, void *ptr, size_t size, int part)
+{
+	void	*ret;
+	t_ulong align;
+
+	if (size < g_data.parts[part].max_size)
+		return (ptr);
+	ret = malloc(size);
+	if (!ret)
+		return (0);
+	align = (t_ulong)(ptr - ) / g_data.parts[part].max_size;
+	blc->map[align / H] &= ~(1 << align);
+	ft_memcpy(ret, ptr, g_data.parts[part].max_size);
+	return (ret);
+}
+
 void			*realloc(void *ptr, size_t size)
 {
-	t_ulong		hash;
-	t_ulong		align;
-	t_block		*t;
-	t_block		*s;
-	t_block		*l;
+	t_ulong		hs;
+	t_ulong		align[4];
+	t_block		*bc[3];
+	int			i;
+	void		*ret;
 
 	if (!g_data.block_size)
 		return (0);
-	align = (t_ulong)ptr / g_data.block_size / 2;
-	hash = align * g_data.block_size * 2 * FVN;
-	t = ((hash & g_data.parts[0].filter) == hash) ? &g_data.parts[0].origin : 0;
-	hash = align / 16 * g_data.block_size * 32 * FVN;
-	s = ((hash & g_data.parts[1].filter) == hash) ? &g_data.parts[0].origin : 0;
-	hash = (t_ulong)ptr * FVN;
-	l = ((hash & g_data.parts[2].filter) == hash) ? &g_data.parts[0].origin : 0;
+	align[2] = (t_ulong)ptr;
+	align[0] = (t_ulong)ptr & (~(g_data.block_size * 2 - 1));
+	hs = align[0] * FVN;
+	bc[0] = ((hs & g_data.parts[0].filter) == hs) ? &g_data.parts[0].origin : 0;
+	align[1] = (t_ulong)ptr & (~(g_data.block_size * 2 * H  - 1));
+	hs = align[1] * FVN;
+	bc[1] = ((hs & g_data.parts[1].filter) == hs) ? &g_data.parts[1].origin : 0;
+	hs = (t_ulong)ptr * FVN;
+	bc[2] = ((hs & g_data.parts[2].filter) == hs) ? &g_data.parts[2].origin : 0;
 	while (1)
-		if (t || s || l)
-		{
-			if (t)
-				if(ptr > t->mem && ptr < t->mem + g_data.parts[0].max_size * F)
+	{
+		i = -1;
+		while (++i < 3)
+			if (bc[i] && ptr > bc[i]->mem && ptr < bc[i]->mem +
+					g_data.parts[i].max_size * F)
 				{
-					if (size < g_data.parts[0].max_size)
+					if (size < g_data.parts[i].max_size)
 						return (ptr);
+					ret = malloc(size);
+					if (!ret)
+						return (0);
+					align[3] = (t_ulong)(ptr - align[i]) /
+						g_data.parts[i].max_size;
+					bc[i]->map[align[3] / H] &= ~(1 << align[3]);
+					ft_memcpy(ret, ptr, g_data.parts[i].max_size);
+					return (ret);
 				}
-		}
-		else
+		if (!(bc[0] || bc[1] || bc[2]))
 			break;
-	return (ptr + size);
+	}
+	return (0);
 }
 
 t_data			init(void)
@@ -185,7 +233,7 @@ t_data			init(void)
 	data.block_size = getpagesize();
 	getrlimit(RLIMIT_AS, &lim);
 	data.max_blocks = lim.rlim_cur / data.block_size;
-	size = data.block_size / F;
+	size = data.block_size / H;
 	data.parts[0].name = "TINY";
 	data.parts[0].max_size = size;
 	data.parts[1].name = "SMALL";
