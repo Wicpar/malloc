@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 17:26:28 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/11 21:19:34 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/12 20:58:25 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,91 @@
 #include <sys/resource.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <fcntl.h>
 
-static t_data g_data;
+#include <stdio.h>
+#include <errno.h>
+
+t_data g_data;
+
+void			ft_putnbrhex(size_t nbr)
+{
+	const char	*map = "0123456789abcdef";
+	char		hex[19];
+	char		bit;
+	int			i;
+
+	i = 16;
+	hex[4] = ' ';
+	hex[9] = ' ';
+	hex[14] = ' ';
+	while (--i > -1)
+	{
+		hex[i + i / 4] = map[nbr % 16];
+		nbr /= 16;
+	}
+	write(1, hex, 19);
+}
+
+void			ft_putnbr(size_t nbr)
+{
+	char bit;
+
+	if (!nbr)
+		return ;
+	bit = nbr % 10 + '0';
+	ft_putnbr(nbr / 10);
+	write(1, &(bit), 1);
+}
+
+void			ft_putocc(t_ulong digit)
+{
+	char bit;
+
+	bit = digit ? '*' : '.';
+	write(1, &bit, 1);
+}
+
+void			ft_putmap(t_ulong map[2])
+{
+	int		i;
+
+	i = -1;
+	while (++i < 64)
+		ft_putocc(map[0] & (1L << i));
+	write(1, "\n                     ", 22);
+	i = -1;
+	while (++i < 64)
+		ft_putocc(map[1] & (1L << i));
+}
+
+void			print_alloc(void)
+{
+	int		i;
+	t_block	*tmp;
+
+	i = -1;
+	while (++i < 3)
+	{
+		write(1, g_data.parts[i].name, g_data.parts[i].name_size);
+		write(1, ": ", 2);
+		ft_putnbr(g_data.parts[i].max_size);
+		write(1, "\n", 1);
+		tmp = &(g_data.parts[i].origin);
+		while (tmp)
+		{
+			ft_putnbrhex((size_t)tmp->mem);
+			if (i != 2)
+			{
+				write(1, ": ", 2);
+				ft_putmap(tmp->map);
+			}
+			write(1, "\n", 1);
+			tmp = tmp->next;
+		}
+		write(1, "\n", 1);
+	}
+}
 
 void			*memalloc(size_t size)
 {
@@ -28,14 +111,27 @@ void			*memalloc(size_t size)
 	mem = malloc(size);
 	if (!mem)
 		return (0);
-	tmp = mem - 8;
-	l = size / 8;
-	o = size % 8;
+	tmp = mem - sizeof(t_ulong);
+	l = size / sizeof(t_ulong);
+	o = size % sizeof(t_ulong);
 	while (--l >= 0)
-		*((long*)(tmp += 8)) = 0;
+		*((long*)(tmp += sizeof(t_ulong))) = 0;
 	while (--o >= 0)
 		*((char*)++tmp) = 0;
 	return (mem);
+}
+
+t_ulong			get_hash(void *ptr, int part)
+{
+	return ((t_ulong)(ptr) / ((~g_data.masks[part]) + 1)) * FVN;
+}
+
+int				not_present(void	*ptr, int part)
+{
+	t_ulong		hash;
+
+	hash = get_hash(ptr, part);
+	return (g_data.parts[part].filter & hash) != hash;
 }
 
 t_ubyte			least_unset_bit(t_ulong *map, t_ubyte flip)
@@ -66,31 +162,30 @@ t_ubyte			least_unset_bit(t_ulong *map, t_ubyte flip)
 	return (offset);
 }
 
-void			*handle_alloc(t_block *block, t_ulong *filter, size_t max)
+void			*handle_alloc(t_block *blc, t_ulong *filt, size_t max, int pid)
 {
-	if (!block)
+	if (!blc)
 		return (0);
-	if (!block->mem)
+	if (!blc->mem)
 	{
-		block->mem = mmap(0, max * F, RW, MAP_ANON | MAP_PRIVATE, -1, 0);
-		if (block->mem == (void*)-1)
+		blc->mem = mmap(0, max * F, RW, MAP_ANON | MAP_PRIVATE, -1, 0);
+		printf("alloc: %p\n", blc->mem);
+		if (blc->mem == (void*)-1)
 		{
-			block->mem = 0;
+			blc->mem = 0;
 			return (0);
 		}
-		*filter |= (t_ulong)block->mem * FVN;
-		block->map[0] = 0;
-		block->map[1] = 0;
-		block->next = memalloc(sizeof(t_block));
+		*filt |= get_hash(blc->mem, pid);
+		blc->map[0] = 0;
+		blc->map[1] = 0;
+		blc->next = memalloc(sizeof(t_block));
+		blc->next->prev = blc;
 	}
-	if (block->map[0] != ~0 || block->map[1] != ~0)
-	{
-		if (block->map[0] != ~0)
-			return (block->mem + max * least_unset_bit(block->map, 1));
-		else
-			return (block->mem + max * (least_unset_bit(&(block->map[1]), 1) + H));
-	}
-	return (handle_alloc(block->next, filter, max));
+	if (blc->map[0] != ~0)
+		return (blc->mem + max * least_unset_bit(blc->map, 1));
+	else if (blc->map[1] != ~0)
+		return (blc->mem + max * (least_unset_bit(&(blc->map[1]), 1) + H));
+	return (handle_alloc(blc->next, filt, max, pid));
 }
 
 void			*handle_large_alloc(t_block *block, t_ulong *fil, size_t size)
@@ -107,15 +202,17 @@ void			*handle_large_alloc(t_block *block, t_ulong *fil, size_t size)
 	{
 		alloc = (size + g_data.block_size - 1) / g_data.block_size;
 		block->mem = mmap(0, alloc, RW, MAP_ANON | MAP_PRIVATE, -1, 0);
+		printf("alloc: %p\n", block->mem);
 		if (block->mem == (void*)-1)
 		{
 			block->mem = 0;
 			return (0);
 		}
-		*fil |= (t_ulong)block->mem * FVN;
+		*fil |= get_hash(block->mem, 2);
 		block->map[0] = size;
 		block->map[1] = alloc;
 		block->next = memalloc(sizeof(t_block));
+		block->next->prev = block;
 		return (block->mem);
 	}
 }
@@ -128,20 +225,65 @@ void			*malloc(size_t size)
 		g_data = init();
 	if (size <= g_data.parts[0].max_size)
 		return (handle_alloc(&g_data.parts[0].origin, &g_data.parts[0].filter,
-					g_data.parts[0].max_size));
+					g_data.parts[0].max_size, 0));
 	else if (size <= g_data.parts[1].max_size)
 		return (handle_alloc(&g_data.parts[1].origin, &g_data.parts[1].filter,
-					g_data.parts[1].max_size));
+					g_data.parts[1].max_size, 1));
 	else
 		return (handle_large_alloc(&g_data.parts[2].origin,
 					&g_data.parts[2].filter, g_data.parts[2].max_size));
 }
 
+void			free_block(void *ptr, t_block *blc, t_partition *part, int pid)
+{
+	t_ulong		pos;
+	t_ulong		filter;
+	t_block		*tmp;
+
+	pos = ((t_ulong)(ptr) & ~g_data.masks[pid]) / part->max_size;
+	if (pid < 2)
+		blc->map[pos / H] &= ~(1L << (pos % H));
+	printf("%x\n", (1 << (pos % H)));
+	if (pid == 2 || (!blc->map[0] && !blc->map[1]))
+	{
+		munmap(blc->mem, pid != 2 ? part->max_size * 128 : blc->map[1]);
+		if (blc->prev)
+		{
+			blc->prev->next = blc->next;
+			free(blc);
+		}
+	}
+	tmp = &(part->origin);
+	filter = 0;
+	while (tmp)
+	{
+		filter |= get_hash(tmp->mem, pid);
+		tmp = tmp->next;
+	}
+	part->filter = filter;
+}
+
 void			free(void *ptr)
 {
-	if (!ptr || !g_data.block_size)
-		return ;
+	t_ulong		hs;
+	t_block		*bc[3];
+	int			i;
 
+	if (!g_data.block_size)
+		return ;
+	bc[0] = (!not_present(ptr, 0)) ? &g_data.parts[0].origin : 0;
+	bc[1] = (!not_present(ptr, 1)) ? &g_data.parts[1].origin : 0;
+	bc[2] = (!not_present(ptr, 2)) ? &g_data.parts[2].origin : 0;
+	while (bc[0] || bc[1] || bc[2])
+	{
+		i = -1;
+		while (++i < 3)
+			if (bc[i] && (void*)((t_ulong)ptr & g_data.masks[i]) == bc[i]->mem)
+				return free_block(bc[i], ptr, &g_data.parts[i], i);
+		bc[0] = bc[0] ? bc[0]->next : 0;
+		bc[1] = bc[1] ? bc[1]->next : 0;
+		bc[2] = bc[2] ? bc[2]->next : 0;
+	}
 }
 
 void			*ft_memcpy(void *dest, const void *src, size_t n)
@@ -163,63 +305,42 @@ void			*ft_memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 
-
-
 void			*realloc_block(t_block *blc, void *ptr, size_t size, int part)
 {
 	void	*ret;
-	t_ulong align;
 
 	if (size < g_data.parts[part].max_size)
 		return (ptr);
 	ret = malloc(size);
 	if (!ret)
 		return (0);
-	align = (t_ulong)(ptr - ) / g_data.parts[part].max_size;
-	blc->map[align / H] &= ~(1 << align);
 	ft_memcpy(ret, ptr, g_data.parts[part].max_size);
+	free_block(ptr, blc, &(g_data.parts[part]), part);
 	return (ret);
 }
 
 void			*realloc(void *ptr, size_t size)
 {
 	t_ulong		hs;
-	t_ulong		align[4];
 	t_block		*bc[3];
 	int			i;
-	void		*ret;
 
 	if (!g_data.block_size)
 		return (0);
-	align[2] = (t_ulong)ptr;
-	align[0] = (t_ulong)ptr & (~(g_data.block_size * 2 - 1));
-	hs = align[0] * FVN;
-	bc[0] = ((hs & g_data.parts[0].filter) == hs) ? &g_data.parts[0].origin : 0;
-	align[1] = (t_ulong)ptr & (~(g_data.block_size * 2 * H  - 1));
-	hs = align[1] * FVN;
-	bc[1] = ((hs & g_data.parts[1].filter) == hs) ? &g_data.parts[1].origin : 0;
-	hs = (t_ulong)ptr * FVN;
-	bc[2] = ((hs & g_data.parts[2].filter) == hs) ? &g_data.parts[2].origin : 0;
-	while (1)
+	if(!ptr)
+		return malloc(size);
+	bc[0] = (!not_present(ptr, 0)) ? &g_data.parts[0].origin : 0;
+	bc[1] = (!not_present(ptr, 1)) ? &g_data.parts[1].origin : 0;
+	bc[2] = (!not_present(ptr, 2)) ? &g_data.parts[2].origin : 0;
+	while (bc[0] || bc[1] || bc[2])
 	{
 		i = -1;
 		while (++i < 3)
-			if (bc[i] && ptr > bc[i]->mem && ptr < bc[i]->mem +
-					g_data.parts[i].max_size * F)
-				{
-					if (size < g_data.parts[i].max_size)
-						return (ptr);
-					ret = malloc(size);
-					if (!ret)
-						return (0);
-					align[3] = (t_ulong)(ptr - align[i]) /
-						g_data.parts[i].max_size;
-					bc[i]->map[align[3] / H] &= ~(1 << align[3]);
-					ft_memcpy(ret, ptr, g_data.parts[i].max_size);
-					return (ret);
-				}
-		if (!(bc[0] || bc[1] || bc[2]))
-			break;
+			if (bc[i] && (void*)((t_ulong)ptr & g_data.masks[i]) == bc[i]->mem)
+				return realloc_block(bc[i], ptr, size, i);
+		bc[0] = bc[0] ? bc[0]->next : 0;
+		bc[1] = bc[1] ? bc[1]->next : 0;
+		bc[2] = bc[2] ? bc[2]->next : 0;
 	}
 	return (0);
 }
@@ -228,17 +349,21 @@ t_data			init(void)
 {
 	t_data			data;
 	struct rlimit	lim;
-	size_t			size;
 
 	data.block_size = getpagesize();
 	getrlimit(RLIMIT_AS, &lim);
 	data.max_blocks = lim.rlim_cur / data.block_size;
-	size = data.block_size / H;
 	data.parts[0].name = "TINY";
-	data.parts[0].max_size = size;
+	data.parts[0].name_size = sizeof("TINY");
+	data.parts[0].max_size = TNMEM(data.block_size);
 	data.parts[1].name = "SMALL";
-	data.parts[1].max_size = size * Q;
+	data.parts[1].name_size = sizeof("SMALL");
+	data.parts[1].max_size = SMMEM(data.block_size);
 	data.parts[2].name = "LARGE";
+	data.parts[2].name_size = sizeof("LARGE");
 	data.parts[2].max_size = -1;
+	data.masks[0] = TNMASK(data.block_size);
+	data.masks[1] = SMMASK(data.block_size);
+	data.masks[2] = -1;
 	return (data);
 }

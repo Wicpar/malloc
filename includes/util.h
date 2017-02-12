@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 18:07:20 by fnieto            #+#    #+#             */
-/*   Updated: 2017/01/23 16:18:00 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/12 20:49:48 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,12 @@
 # define F (128)
 # define H (F / 2)
 # define Q (H / 2)
+# define TNBLC (2)
+# define SMBLC (16)
+# define TNMASK(BLCK) (~((BLCK) - 1))
+# define SMMASK(BLCK) (~((BLCK) - 1))
+# define TNMEM(BLCK) ((TNBLC * (BLCK)) / F)
+# define SMMEM(BLCK) ((SMBLC * (BLCK)) / F)
 
 
 typedef unsigned long	t_ulong;
@@ -32,11 +38,13 @@ typedef struct			s_block
 	void			*mem;
 	t_ulong			map[2];
 	struct s_block	*next;
+	struct s_block	*prev;
 }						t_block;
 
 typedef struct			s_partition
 {
 	char	*name;
+	int		name_size;
 	size_t	max_size;
 	t_ulong	filter;
 	t_block	origin;
@@ -46,8 +54,11 @@ typedef struct			s_data
 {
 	t_partition	parts[3];
 	size_t		block_size;
+	t_ulong		masks[3];
 	size_t		max_blocks;
 }						t_data;
+
+extern t_data			g_data;
 
 t_data					init(void);
 
