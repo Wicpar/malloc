@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 18:07:20 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/12 20:49:48 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/14 18:56:50 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,11 +19,10 @@
 # define FVN (14695981039346656037UL)
 # define F (128)
 # define H (F / 2)
-# define Q (H / 2)
 # define TNBLC (2)
 # define SMBLC (16)
-# define TNMASK(BLCK) (~((BLCK) - 1))
-# define SMMASK(BLCK) (~((BLCK) - 1))
+# define TNMASK(BLCK) (~((TNBLC * BLCK) - 1))
+# define SMMASK(BLCK) (~((SMBLC * BLCK) - 1))
 # define TNMEM(BLCK) ((TNBLC * (BLCK)) / F)
 # define SMMEM(BLCK) ((SMBLC * (BLCK)) / F)
 
@@ -46,8 +45,8 @@ typedef struct			s_partition
 	char	*name;
 	int		name_size;
 	size_t	max_size;
-	t_ulong	filter;
 	t_block	origin;
+	t_block	*first_incomplete;
 }						t_partition;
 
 typedef struct			s_data

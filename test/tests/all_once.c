@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/02/12 18:37:41 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/12 20:57:12 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/14 13:58:37 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@ void	test(void)
 	//printf("%s\n", strerror(errno));
 	printf("%p\n", mem);
 	printf("%p\n", mem2);
-	print_alloc();
+	show_alloc_mem();
 	//mem = realloc(mem, 1000);
 	//printf("%s\n", strerror(errno));
 	//printf("%p\n", mem);
@@ -35,9 +35,9 @@ void	test(void)
 	//mem[2] = 0;
 	//printf("%s\n", mem);
 	free(mem);
-	print_alloc();
+	show_alloc_mem();
 	free(mem2);
-	print_alloc();
+	show_alloc_mem();
 	//printf("%s\n", strerror(errno));
 
 }

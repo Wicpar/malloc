@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 17:26:28 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/12 20:58:25 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/14 18:50:39 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,11 +73,14 @@ void			ft_putmap(t_ulong map[2])
 		ft_putocc(map[1] & (1L << i));
 }
 
-void			print_alloc(void)
+void			show_alloc_mem(void)
 {
 	int		i;
 	t_block	*tmp;
 
+
+	if (!g_data.block_size)
+		g_data = init();
 	i = -1;
 	while (++i < 3)
 	{
@@ -86,7 +89,7 @@ void			print_alloc(void)
 		ft_putnbr(g_data.parts[i].max_size);
 		write(1, "\n", 1);
 		tmp = &(g_data.parts[i].origin);
-		while (tmp)
+		while (tmp && tmp->mem)
 		{
 			ft_putnbrhex((size_t)tmp->mem);
 			if (i != 2)
@@ -121,19 +124,6 @@ void			*memalloc(size_t size)
 	return (mem);
 }
 
-t_ulong			get_hash(void *ptr, int part)
-{
-	return ((t_ulong)(ptr) / ((~g_data.masks[part]) + 1)) * FVN;
-}
-
-int				not_present(void	*ptr, int part)
-{
-	t_ulong		hash;
-
-	hash = get_hash(ptr, part);
-	return (g_data.parts[part].filter & hash) != hash;
-}
-
 t_ubyte			least_unset_bit(t_ulong *map, t_ubyte flip)
 {
 	const t_ulong	masks[] = {1, 3, 0xF, 0xFF, 0xFFFF, 0xFFFFFFFF};
@@ -162,20 +152,18 @@ t_ubyte			least_unset_bit(t_ulong *map, t_ubyte flip)
 	return (offset);
 }
 
-void			*handle_alloc(t_block *blc, t_ulong *filt, size_t max, int pid)
+void			*handle_alloc(t_block *blc, size_t max, int pid)
 {
 	if (!blc)
 		return (0);
 	if (!blc->mem)
 	{
 		blc->mem = mmap(0, max * F, RW, MAP_ANON | MAP_PRIVATE, -1, 0);
-		printf("alloc: %p\n", blc->mem);
 		if (blc->mem == (void*)-1)
 		{
 			blc->mem = 0;
 			return (0);
 		}
-		*filt |= get_hash(blc->mem, pid);
 		blc->map[0] = 0;
 		blc->map[1] = 0;
 		blc->next = memalloc(sizeof(t_block));
@@ -185,10 +173,10 @@ void			*handle_alloc(t_block *blc, t_ulong *filt, size_t max, int pid)
 		return (blc->mem + max * least_unset_bit(blc->map, 1));
 	else if (blc->map[1] != ~0)
 		return (blc->mem + max * (least_unset_bit(&(blc->map[1]), 1) + H));
-	return (handle_alloc(blc->next, filt, max, pid));
+	return (handle_alloc(blc->next, max, pid));
 }
 
-void			*handle_large_alloc(t_block *block, t_ulong *fil, size_t size)
+void			*handle_large_alloc(t_block *block, size_t size)
 {
 	size_t	alloc;
 
@@ -196,19 +184,17 @@ void			*handle_large_alloc(t_block *block, t_ulong *fil, size_t size)
 		return (0);
 	if (block->mem)
 	{
-		return (handle_large_alloc(block, fil, size));
+		return (handle_large_alloc(block, size));
 	}
 	else
 	{
 		alloc = (size + g_data.block_size - 1) / g_data.block_size;
 		block->mem = mmap(0, alloc, RW, MAP_ANON | MAP_PRIVATE, -1, 0);
-		printf("alloc: %p\n", block->mem);
 		if (block->mem == (void*)-1)
 		{
 			block->mem = 0;
 			return (0);
 		}
-		*fil |= get_hash(block->mem, 2);
 		block->map[0] = size;
 		block->map[1] = alloc;
 		block->next = memalloc(sizeof(t_block));
@@ -224,43 +210,56 @@ void			*malloc(size_t size)
 	if (!g_data.block_size)
 		g_data = init();
 	if (size <= g_data.parts[0].max_size)
-		return (handle_alloc(&g_data.parts[0].origin, &g_data.parts[0].filter,
+		return (handle_alloc(&g_data.parts[0].origin,
 					g_data.parts[0].max_size, 0));
 	else if (size <= g_data.parts[1].max_size)
-		return (handle_alloc(&g_data.parts[1].origin, &g_data.parts[1].filter,
+		return (handle_alloc(&g_data.parts[1].origin,
 					g_data.parts[1].max_size, 1));
 	else
 		return (handle_large_alloc(&g_data.parts[2].origin,
-					&g_data.parts[2].filter, g_data.parts[2].max_size));
+					g_data.parts[2].max_size));
+}
+
+void			clean_origin(t_block *blc, int pid)
+{
+	free(blc->next);
+	blc->next = 0;
+	blc->mem = 0;
+}
+
+void			clean_allocated(t_block *blc, int pid)
+{
+	blc->prev->next = blc->next;
+	free(blc);
 }
 
 void			free_block(void *ptr, t_block *blc, t_partition *part, int pid)
 {
 	t_ulong		pos;
-	t_ulong		filter;
-	t_block		*tmp;
+	void		*mem;
 
-	pos = ((t_ulong)(ptr) & ~g_data.masks[pid]) / part->max_size;
+	pos = (ptr - blc->mem) / part->max_size;
 	if (pid < 2)
 		blc->map[pos / H] &= ~(1L << (pos % H));
-	printf("%x\n", (1 << (pos % H)));
-	if (pid == 2 || (!blc->map[0] && !blc->map[1]))
+	if (pid == 0 && blc->map[0] < 2 && !blc->map[1])
 	{
-		munmap(blc->mem, pid != 2 ? part->max_size * 128 : blc->map[1]);
+		mem = blc->mem;
+		blc->mem = 0;
 		if (blc->prev)
-		{
-			blc->prev->next = blc->next;
-			free(blc);
-		}
+			*(blc->prev->next) = *(blc->next);
+		else
+			*blc = *(blc->next);
+		munmap(mem, part->max_size * 128);
 	}
-	tmp = &(part->origin);
-	filter = 0;
-	while (tmp)
+	else if (pid == 2 || (!blc->map[0] && !blc->map[1]))
 	{
-		filter |= get_hash(tmp->mem, pid);
-		tmp = tmp->next;
+		mem = blc->mem;
+		if (blc->prev)
+			clean_allocated(blc, pid);
+		else
+			clean_origin(blc, pid);
+		munmap(mem, pid != 2 ? part->max_size * 128 : blc->map[1]);
 	}
-	part->filter = filter;
 }
 
 void			free(void *ptr)
@@ -271,15 +270,15 @@ void			free(void *ptr)
 
 	if (!g_data.block_size)
 		return ;
-	bc[0] = (!not_present(ptr, 0)) ? &g_data.parts[0].origin : 0;
-	bc[1] = (!not_present(ptr, 1)) ? &g_data.parts[1].origin : 0;
-	bc[2] = (!not_present(ptr, 2)) ? &g_data.parts[2].origin : 0;
+	bc[0] = &g_data.parts[0].origin;
+	bc[1] = &g_data.parts[1].origin;
+	bc[2] = &g_data.parts[2].origin;
 	while (bc[0] || bc[1] || bc[2])
 	{
 		i = -1;
 		while (++i < 3)
-			if (bc[i] && (void*)((t_ulong)ptr & g_data.masks[i]) == bc[i]->mem)
-				return free_block(bc[i], ptr, &g_data.parts[i], i);
+			if (bc[i] && (ptr - bc[i]->mem) < ((~g_data.masks[i]) + 1))
+				return free_block(ptr, bc[i], &g_data.parts[i], i);
 		bc[0] = bc[0] ? bc[0]->next : 0;
 		bc[1] = bc[1] ? bc[1]->next : 0;
 		bc[2] = bc[2] ? bc[2]->next : 0;
@@ -329,14 +328,14 @@ void			*realloc(void *ptr, size_t size)
 		return (0);
 	if(!ptr)
 		return malloc(size);
-	bc[0] = (!not_present(ptr, 0)) ? &g_data.parts[0].origin : 0;
-	bc[1] = (!not_present(ptr, 1)) ? &g_data.parts[1].origin : 0;
-	bc[2] = (!not_present(ptr, 2)) ? &g_data.parts[2].origin : 0;
+	bc[0] = &g_data.parts[0].origin;
+	bc[1] = &g_data.parts[1].origin;
+	bc[2] = &g_data.parts[2].origin;
 	while (bc[0] || bc[1] || bc[2])
 	{
 		i = -1;
 		while (++i < 3)
-			if (bc[i] && (void*)((t_ulong)ptr & g_data.masks[i]) == bc[i]->mem)
+			if (bc[i] && (ptr - bc[i]->mem) < ((~g_data.masks[i]) + 1))
 				return realloc_block(bc[i], ptr, size, i);
 		bc[0] = bc[0] ? bc[0]->next : 0;
 		bc[1] = bc[1] ? bc[1]->next : 0;

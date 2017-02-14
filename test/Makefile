@@ -6,7 +6,7 @@
 #    By: fnieto <fnieto@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2013/11/19 14:09:58 by apachkof          #+#    #+#              #
-#    Updated: 2017/01/23 16:30:22 by fnieto           ###   ########.fr        #
+#    Updated: 2017/02/14 16:57:13 by fnieto           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,7 +14,7 @@ NAME=test
 
 CC=gcc
 
-CFLAGS=-Wall -Wextra -Werror -O3
+CFLAGS=-Wall -Wextra -Werror
 
 RM=rm -f
 
