@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 18:07:20 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/14 18:56:50 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/14 20:26:44 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,7 +46,6 @@ typedef struct			s_partition
 	int		name_size;
 	size_t	max_size;
 	t_block	origin;
-	t_block	*first_incomplete;
 }						t_partition;
 
 typedef struct			s_data

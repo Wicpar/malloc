@@ -6,7 +6,7 @@
 /*   By: fnieto <marvin@42.fr>                      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/21 17:26:28 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/14 18:50:39 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/14 21:17:33 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -220,23 +220,11 @@ void			*malloc(size_t size)
 					g_data.parts[2].max_size));
 }
 
-void			clean_origin(t_block *blc, int pid)
-{
-	free(blc->next);
-	blc->next = 0;
-	blc->mem = 0;
-}
-
-void			clean_allocated(t_block *blc, int pid)
-{
-	blc->prev->next = blc->next;
-	free(blc);
-}
-
 void			free_block(void *ptr, t_block *blc, t_partition *part, int pid)
 {
 	t_ulong		pos;
 	void		*mem;
+	t_block		*tmp;
 
 	pos = (ptr - blc->mem) / part->max_size;
 	if (pid < 2)
@@ -244,20 +232,15 @@ void			free_block(void *ptr, t_block *blc, t_partition *part, int pid)
 	if (pid == 0 && blc->map[0] < 2 && !blc->map[1])
 	{
 		mem = blc->mem;
-		blc->mem = 0;
-		if (blc->prev)
-			*(blc->prev->next) = *(blc->next);
-		else
-			*blc = *(blc->next);
+		*blc = *(blc->next);
 		munmap(mem, part->max_size * 128);
 	}
-	else if (pid == 2 || (!blc->map[0] && !blc->map[1]))
+	else if (pid == 2 || (pid == 1 && (!blc->map[0] && !blc->map[1])))
 	{
 		mem = blc->mem;
-		if (blc->prev)
-			clean_allocated(blc, pid);
-		else
-			clean_origin(blc, pid);
+		tmp = blc->next;
+		*blc = *(blc->next);
+		free(tmp);
 		munmap(mem, pid != 2 ? part->max_size * 128 : blc->map[1]);
 	}
 }
