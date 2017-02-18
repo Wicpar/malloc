@@ -6,7 +6,7 @@
 /*   By: fnieto <fnieto@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/02/15 17:35:54 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/18 18:52:51 by fnieto           ###   ########.fr       */
+/*   Updated: 2017/02/18 20:03:22 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,6 +65,16 @@ static void			ft_putmap(t_ulong map[2])
 		ft_putocc(map[1] & (1L << i));
 }
 
+static void			ft_putmap_large(t_ulong map[2])
+{
+	write(1, "asked: ", 7);
+	ft_putnbr(map[0]);
+	write(1, "\n                     ", 22);
+	write(1, "given: ", 17);
+	ft_putnbr(map[1]);
+	write(1, "\n", 1);
+}
+
 void				show_alloc_mem(void)
 {
 	int		i;
@@ -86,7 +96,7 @@ void				show_alloc_mem(void)
 			if (i != 2)
 				ft_putmap(tmp->map);
 			else
-				ft_putnbr(tmp->map[1]);
+				ft_putmap_large(tmp->map);
 			write(1, "\n\n", 1 + (!(tmp->next && tmp->next->mem)));
 			tmp = tmp->next;
 		}
