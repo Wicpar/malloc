@@ -21,23 +21,12 @@
 void	test(void)
 {
 	char	*mem;
-	char	*mem2;
 
-//	show_alloc_mem();
-	write(1, "tes0\n", 5);
-	mem = malloc(10);
-	write(1, "test\n", 5);
-//	printf("%p\n", mem);
-//	show_alloc_mem();
-	mem2 = malloc(100);
-//	printf("%p\n", mem2);
-//	show_alloc_mem();
-	mem2 = realloc(mem2, 1000);
-	*mem = 100;
-//	show_alloc_mem();
+	mem = malloc(100);
+	mem[0] = 100;
+	mem[99] = 100;
+	mem = realloc(mem, 4096);
+	mem[0] = 100;
+	mem[4095] = 100;
 	free(mem);
-//	show_alloc_mem();
-	free(mem2);
-//	show_alloc_mem();
-
 }

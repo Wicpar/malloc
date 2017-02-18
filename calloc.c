@@ -1,26 +1,30 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   malloc.h                                           :+:      :+:    :+:   */
+/*   calloc.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: fnieto <fnieto@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2017/01/21 17:34:44 by fnieto            #+#    #+#             */
-/*   Updated: 2017/02/18 19:31:59 by fnieto           ###   ########.fr       */
+/*   Created: 2017/02/18 14:37:45 by fnieto            #+#    #+#             */
+/*   Updated: 2017/02/18 19:03:23 by fnieto           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef MALLOC_H
-# define MALLOC_H
-# include <string.h>
+#include "util.h"
+#include "malloc.h"
 
-void	free(void *ptr);
-void	vfree(void *ptr);
-void	*malloc(size_t size);
-void	*valloc(size_t size);
-void	*calloc(size_t nelem, size_t elsize);
-void	*realloc(void *ptr, size_t size);
-void	*reallocf(void *ptr, size_t size);
-void	show_alloc_mem(void);
+void				*calloc(size_t nelem, size_t elsize)
+{
+	size_t	size;
+	void	*ptr;
 
-#endif
+	size = nelem * elsize;
+	ptr = malloc(size);
+	ft_bzero(ptr, size);
+	return (ptr);
+}
+
+void				*valloc(size_t size)
+{
+	return (malloc(MAX(size, 4096)));
+}

@@ -5,8 +5,8 @@
 #                                                     +:+ +:+         +:+      #
 #    By: fnieto <fnieto@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2013/11/19 14:09:58 by apachkof          #+#    #+#              #
-#    Updated: 2017/02/14 16:57:13 by fnieto           ###   ########.fr        #
+#    Created: 2013/11/19 14:09:58 by fnieto            #+#    #+#              #
+#    Updated: 2017/02/18 15:34:58 by fnieto           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,7 +14,7 @@ NAME=test
 
 CC=gcc
 
-CFLAGS=-Wall -Wextra -Werror
+CFLAGS=-Wall -Wextra -Werror -g
 
 RM=rm -f
 
@@ -24,7 +24,7 @@ TNAMES=$(shell ls -1 tests)
 
 TSRC=$(addprefix tests/,$(TNAMES))
 
-LIB= -L ../ -lft_malloc
+LIB= -L ./ -lft_malloc
 
 INCL=-I ../includes/
 
@@ -37,7 +37,7 @@ tests/%.o: tests/%.c lib $(OBJ) FORCE
 	@$(CC) $(CFLAGS) $(INCL) -c $< -o $@
 	@$(CC) $(CFLAGS) -o $(NAME) $(OBJ) $@ $(INCL) $(LIB)
 	@echo $@
-	@time ./test
+	@time ./run.sh ./test
 
 %.o: %.c
 	@$(CC) $(CFLAGS) $(INCL) -c $< -o $@
